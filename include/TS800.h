@@ -17,6 +17,7 @@ public:
   TS800();
   virtual ~TS800();
 
+  static void ReadInverseMap(const char *);
 
   //////////////////////////////////////////////
   virtual void InsertHit(const TDetectorHit&);
@@ -63,10 +64,37 @@ public:
   float GetTofE1_MTDC(float c1=0.00,float c2=0.00,int i=0) const;
 
   float GetCorrTOF_OBJTAC() const;
+  float GetOBJRaw_TAC() const;
+  float GetXFRaw_TAC() const;
+  
   float GetCorrTOF_OBJ() const;
+  float GetOBJ_E1Raw() const;
+  float GetXF_E1Raw() const;
+  //===================================================  
+
+
+
+
+
+
   float GetCorrTOF_OBJ_MESY(int i=0) const;
-//float GetCorrTOF_XFPTAC();
-//float GetCorrTOF_XFP();
+  
+  float GetOBJ_E1Raw_MESY(int i=0) const;
+ 
+  float GetRawOBJ_MESY(int i=0) const;
+
+  float GetRawE1_MESY(int i=0) const;
+  
+  float GetXF_E1Raw_MESY(int i=0) const;
+  
+  float GetRawXF_MESY(int i=0) const;
+
+  float MCorrelatedOBJ() const;
+  float MCorrelatedXFP() const;
+  float MCorrelatedE1() const;
+  float MCorrelatedOBJ_E1(bool corrected=true) const;
+  float MCorrelatedXFP_E1() const;
+  
 
 private:
 
@@ -81,7 +109,7 @@ private:
   static int fcharge;                                             //!
   //---------------------
 
-  void ReadMap_SpecTCL();
+  static bool ReadMap_SpecTCL(std::string);
   virtual int  BuildHits();
 
   bool HandleTrigPacket(unsigned short*,int);     //!

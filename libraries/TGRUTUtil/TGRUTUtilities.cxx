@@ -4,6 +4,10 @@
 #include <sys/stat.h>
 #include <iostream>
 #include <fstream>
+#include <sstream>
+
+#include <sys/stat.h>
+#include <glob.h>
 
 #include "TObjArray.h"
 #include "TObjString.h"
@@ -69,4 +73,65 @@ void CalculateParameters() {
     std::string("xterm -e python2 ") + getenv("GRUTSYS") + "/libraries/TGRUTUtil/very-important-file &";
   std::cout << command << std::endl;
   system(command.c_str());
+}
+
+// From http://stackoverflow.com/a/8615450/2689797
+std::vector<std::string> glob(const std::string& pattern) {
+  glob_t glob_result;
+  glob(pattern.c_str(), GLOB_TILDE, NULL, &glob_result);
+
+  std::vector<std::string> output;
+  for(unsigned int i=0; i<glob_result.gl_pathc; i++) {
+    output.push_back(glob_result.gl_pathv[i]);
+  }
+  globfree(&glob_result);
+
+  return output;
+}
+
+bool is_bash_pattern(const std::string& pattern) {
+  return (pattern.find("*") != std::string::npos ||
+          pattern.find("?") != std::string::npos ||
+          pattern.find("[") != std::string::npos ||
+          pattern.find("]") != std::string::npos ||
+          pattern.find("!") != std::string::npos);
+}
+
+int count_newlines(const std::string& str) {
+  std::stringstream ss(str);
+  int nlinebreaks = 0;
+  while (true){
+    std::string line;
+    std::getline(ss,line);
+    if (!ss.good()) { break; }
+    nlinebreaks++;
+  }
+  return nlinebreaks;
+}
+
+std::vector<int> MakeVectorFromFile(const char *fname) {
+  std::vector<int> ret_vec;
+  std::string line(fname);
+  if(!line.length())
+    return ret_vec;
+  std::ifstream infile;
+  infile.open(fname);
+  line.clear();
+  while(getline(infile,line)) {
+    std::stringstream ss(line);
+    int x;
+    ss >> x;
+    ret_vec.push_back(x);
+  }
+  return ret_vec;
+}
+
+// From http://stackoverflow.com/a/24315631
+std::string ReplaceAll(std::string str, const std::string& from, const std::string& to) {
+  size_t start_pos = 0;
+  while((start_pos = str.find(from, start_pos)) != std::string::npos) {
+    str.replace(start_pos, from.length(), to);
+    start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
+  }
+  return str;
 }

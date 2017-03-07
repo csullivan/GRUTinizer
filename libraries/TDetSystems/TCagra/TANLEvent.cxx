@@ -7,6 +7,7 @@ ClassImp(TANLEvent)
 
 //bool TANLEvent::fExtractWaves = true;
 Float_t TANLEvent::shaping_time = std::sqrt(-1);
+Float_t TANLEvent::signal_polarity = std::sqrt(-1);
 
 TANLEvent::TANLEvent(TSmartBuffer& buf) : d_cfd(0.) {
 
@@ -61,26 +62,37 @@ TANLEvent::TANLEvent(TSmartBuffer& buf) : d_cfd(0.) {
     break;
   }
   case TRawEvent::ArgonneType::LEDv18: {
-    throw std::invalid_argument(
-      "void TANLEvent::BuildFrom(TSmartBuffer buf) :: ArgonneType::LEDv18 is not implemented.");
-    break;
-    // auto data = (TRawEvent::GEBArgonneLEDv11*)buf.GetData();
-    // buf.Advance(sizeof(TRawEvent::GEBArgonneLEDv11));
-    // // Swap big endian for little endian
-    // TRawEvent::SwapArgonneLEDv11(*data);
-    // // Extract data from payload
-    // disc_prev = data->GetPreviousLED();
-    // flags = data->flags;
-    // prerise_energy = data->GetPreRiseE();
-    // postrise_energy = data->GetPostRiseE();
+    // throw std::invalid_argument(
+    //   "void TANLEvent::BuildFrom(TSmartBuffer buf) :: ArgonneType::LEDv18 is not implemented.");
+    // break;
+    auto data = (TRawEvent::GEBArgonneLEDv18*)buf.GetData();
+    buf.Advance(sizeof(TRawEvent::GEBArgonneLEDv18));
+    // Swap big endian for little endian
+    TRawEvent::SwapArgonneLEDv18(*data);
+    // Extract data from payload
+    disc_prev = data->GetPreviousLED();
+    flags = data->flags;
+    prerise_energy = data->GetPreRiseE();
+    postrise_energy = data->GetPostRiseE();
     // postrise_begin_sample = data->GetPostRiseSampleBegin();
     // prerise_begin_sample = data->GetPreRiseSampleBegin();
     // postrise_end_sample = data->GetPostRiseSampleEnd();
     // prerise_end_sample = data->GetPreRiseSampleEnd();
+    base_sample = data->GetBaseSample();
+    sampled_baseline = data->GetBaseline();
 
-    // // ignore waveform data
-    // size_t wave_bytes = header->GetLength()*4 - sizeof(*header) - sizeof(*data);
-    // buf.Advance(wave_bytes);
+    size_t wave_bytes = header->GetLength()*4 - sizeof(*header) - sizeof(*data); // labr 1.52us
+    // // trace analysis here
+    for (auto i=0u; i<wave_bytes; i+=sizeof(UShort_t)) {
+      UShort_t swapped = TRawEvent::SwapShort(((UShort_t*)buf.GetData())[0]);
+      UShort_t mark = (((UShort_t*)buf.GetData())[0] & 0x8000) >> 15;
+      if (mark) {
+        timing_marks.push_back(i);
+      }
+      Short_t tracept = TRawEvent::GetSigned14BitFromUShort(swapped);
+      wave_data.push_back(tracept);
+      buf.Advance(sizeof(UShort_t));
+    }
 
     break;
   }
@@ -102,12 +114,20 @@ TANLEvent::TANLEvent(TSmartBuffer& buf) : d_cfd(0.) {
     postrise_end_sample = data->GetPostRiseSampleEnd();
     prerise_end_sample = data->GetPreRiseSampleEnd();
     base_sample = data->GetBaseSample();
+    sampled_baseline = data->GetBaseline();
+
+    prev_postrise_begin_sample = data->GetLastPostRiseEnterSample();
 
 
     size_t wave_bytes = header->GetLength()*4 - sizeof(*header) - sizeof(*data); // labr 1.52us
+
     // // trace analysis here
     for (auto i=0u; i<wave_bytes; i+=sizeof(UShort_t)) {
       UShort_t swapped = TRawEvent::SwapShort(((UShort_t*)buf.GetData())[0]);
+      UShort_t mark = (((UShort_t*)buf.GetData())[0] & 0x8000) >> 15;
+      if (mark) {
+        timing_marks.push_back(i);
+      }
       Short_t tracept = TRawEvent::GetSigned14BitFromUShort(swapped);
       wave_data.push_back(tracept);
       buf.Advance(sizeof(UShort_t));
